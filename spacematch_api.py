@@ -40,7 +40,7 @@ app = FastAPI(
 # Enable CORS for all origins (adjust in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://jatinchandani.github.io"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
