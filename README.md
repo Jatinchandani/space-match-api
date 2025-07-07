@@ -97,7 +97,7 @@ space-match-api/
 
 ## Loom Video
 
-🎥 [Click to Watch – 3 min Prototype Walkthrough](#)
+🎥 https://www.loom.com/share/f7d3a49b3e4c4a57a1a2229cc6a18057?sid=267b0c39-b7df-4297-b677-67b56463de3d
 
 ---
 
