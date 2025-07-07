@@ -18,6 +18,7 @@ import os
 import numpy as np
 import logging
 from datetime import datetime
+import pandas as pd
 
 from vector_store_loader import SpaceMatchVectorStore
 
@@ -216,6 +217,8 @@ def convert_np_types(obj):
         return float(obj)
     elif isinstance(obj, (np.ndarray,)):
         return obj.tolist()
+    elif isinstance(obj, pd.Timestamp): 
+        return obj.isoformat()
     else:
         return obj
 
