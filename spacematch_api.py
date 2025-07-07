@@ -1,13 +1,3 @@
-# -----------------------------------------------
-# SpaceMatch: AI-Powered Property Matching API
-# -----------------------------------------------
-# Description:
-# This is a full-featured FastAPI backend designed for SpaceMatch,
-# supporting natural language property search with filters, semantic matching,
-# and AI-enhanced query handling. It integrates a custom vector store
-# and exposes various endpoints for chat, search, health, stats, and more.
-# -----------------------------------------------
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,6 +9,7 @@ import numpy as np
 import logging
 from datetime import datetime
 import pandas as pd
+import re
 
 from vector_store_loader import SpaceMatchVectorStore
 
@@ -38,13 +29,22 @@ app = FastAPI(
 )
 
 # Enable CORS for all origins (adjust in production)
+#app.add_middleware(
+#    CORSMiddleware,
+#    allow_origins=["https://jatinchandani.github.io"],
+#    allow_credentials=True,
+#    allow_methods=["*"],
+#    allow_headers=["*"],
+#)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://jatinchandani.github.io"],
+    allow_origins=["*"],  # In production, replace "*" with specific domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 # Global vector store instance (initialized at startup)
 vector_store = None
@@ -105,10 +105,11 @@ class PropertyFilter:
                     continue
 
         # Bedroom filter
-        for pattern in ["studio", "1 bedroom", "2 bedroom", "3 bedroom", "4 bedroom", "5 bedroom"]:
-            if pattern in self.query:
-                filters['bedrooms'] = 0 if pattern == "studio" else int(pattern.split()[0])
-                break
+        bedroom_match = re.search(r'(\d+)\s*(bhk|bedroom)', self.query)
+        if 'studio' in self.query:
+            filters['bedrooms'] = 0
+        elif bedroom_match:
+            filters['bedrooms'] = int(bedroom_match.group(1))
 
         # Property type filter
         for ptype in ["apartment", "house", "condo", "townhouse", "studio"]:
@@ -171,20 +172,25 @@ def initialize_vector_store():
     global vector_store
     try:
         vector_store = SpaceMatchVectorStore()
+
+        # Always reload property data
+        if os.path.exists('spacematch_properties.json'):
+            vector_store.load_data('spacematch_properties.json')
+        elif os.path.exists('spacematch_properties.csv'):
+            vector_store.load_data('spacematch_properties.csv')
+        else:
+            raise FileNotFoundError("No property data file found")
+
+        # Load index if available
         if os.path.exists('spacematch_index.faiss'):
             logger.info("Loading existing vector store index...")
             vector_store.load_index('spacematch_index')
         else:
             logger.info("Creating new vector store index...")
-            if os.path.exists('spacematch_properties.json'):
-                vector_store.load_data('spacematch_properties.json')
-            elif os.path.exists('spacematch_properties.csv'):
-                vector_store.load_data('spacematch_properties.csv')
-            else:
-                raise FileNotFoundError("No property data file found")
             vector_store.create_embeddings()
             vector_store.build_index()
             vector_store.save_index('spacematch_index')
+
         logger.info("Vector store initialized successfully")
         return True
     except Exception as e:
@@ -236,12 +242,16 @@ async def startup_event():
 # Chat Endpoint
 # -----------------------------
 
-@app.get("/chat", response_model=ChatResponse)
-async def chat(query: str, max_results: int = 10, user_id: Optional[str] = None):
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
     if not vector_store:
         raise HTTPException(status_code=500, detail="Vector store not initialized")
 
     try:
+        query = request.message
+        max_results = request.max_results
+        user_id = request.user_id
+
         qp = QueryProcessor()
         enhanced_query = qp.enhance_query(query)
 
@@ -260,3 +270,21 @@ async def chat(query: str, max_results: int = 10, user_id: Optional[str] = None)
     except Exception as e:
         logger.exception("Chat endpoint error")
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+    
+# -----------------------------
+# Stats Endpoint
+# -----------------------------
+@app.get("/stats")
+async def get_stats():
+    if not vector_store:
+        raise HTTPException(status_code=500, detail="Vector store not initialized")
+
+    try:
+        stats = vector_store.get_stats()
+        return {
+            "total_properties": stats.get("total_properties", 0),
+            "cities": stats.get("cities", 0) 
+        }
+    except Exception as e:
+        logger.exception("Stats endpoint error")
+        raise HTTPException(status_code=500, detail=f"Error retrieving stats: {str(e)}")

@@ -63,6 +63,32 @@ class SpaceMatchVectorStore:
                         prop['amenities'] = []
         logger.info(f"Loaded {len(self.property_data)} records")
 
+    def load_data(self, filepath: str):
+        logger.info(f"Loading data from {filepath}")
+    
+        if filepath.endswith('.csv'):
+            df = pd.read_csv(filepath)
+        elif filepath.endswith('.json'):
+            with open(filepath, 'r') as f:
+                self.property_data = json.load(f)
+            df = pd.DataFrame(self.property_data)
+        else:
+            raise ValueError("Unsupported file format. Use CSV or JSON.")
+    
+        # Ensure amenities field is a list
+        for prop in self.property_data:
+            if isinstance(prop.get('amenities'), str):
+                try:
+                    prop['amenities'] = json.loads(prop['amenities'])
+                except Exception:
+                    try:
+                        prop['amenities'] = eval(prop['amenities'])
+                    except Exception:
+                        prop['amenities'] = []
+
+        logger.info(f"Loaded {len(self.property_data)} records")
+
+
     def create_embeddings(self):
         if not self.property_data:
             raise ValueError("No property data loaded.")
@@ -98,6 +124,12 @@ class SpaceMatchVectorStore:
             self.dimension = data['dimension']
         logger.info("Index loaded successfully")
 
+        # Add debug prints
+        df = pd.DataFrame(self.property_data)
+        print("Post-index-load: first 3 cities", df['city'].head(3).tolist())
+        print("City column value counts:", df['city'].value_counts())
+
+
     def search(self, query: str, k=10) -> List[Dict[str, Any]]:
         if self.index is None:
             raise ValueError("Index not built or loaded")
@@ -117,17 +149,27 @@ class SpaceMatchVectorStore:
     def get_stats(self) -> Dict[str, Any]:
         if not self.property_data:
             return {"error": "No data loaded"}
+
         df = pd.DataFrame(self.property_data)
+
+        #  👇 Add these debug lines
+        print("Available columns:", df.columns.tolist())
+        print("First 3 rows (city):", df[['city']].head(3).to_dict())
+
         return {
             'total_properties': len(df),
-            'cities': df['city'].nunique(),
-            'property_types': df['property_type'].value_counts().to_dict(),
-            'avg_rent': df['monthly_rent'].mean(),
-            'rent_range': [df['monthly_rent'].min(), df['monthly_rent'].max()],
-            'avg_sqft': df['sqft'].mean(),
+            'cities': df['city'].dropna().astype(str).nunique() if 'city' in df.columns else 0,
+            'property_types': df['property_type'].value_counts().to_dict() if 'property_type' in df.columns else {},
+            'avg_rent': df['monthly_rent'].mean() if 'monthly_rent' in df.columns else 0,
+            'rent_range': [
+                df['monthly_rent'].min() if 'monthly_rent' in df.columns else 0,
+                df['monthly_rent'].max() if 'monthly_rent' in df.columns else 0,
+            ],
+            'avg_sqft': df['sqft'].mean() if 'sqft' in df.columns else 0,
             'index_size': self.index.ntotal if self.index else 0,
             'embedding_dimension': self.dimension
         }
+    
 
 if __name__ == '__main__':
     vs = SpaceMatchVectorStore()
