@@ -99,8 +99,6 @@ space-match-api/
 
 🎥 [Click to Watch – 3 min Prototype Walkthrough](#)
 
-*(Add your Loom link here once recorded)*
-
 ---
 
 ## Credits
