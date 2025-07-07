@@ -29,22 +29,13 @@ app = FastAPI(
 )
 
 # Enable CORS for all origins (adjust in production)
-#app.add_middleware(
-#    CORSMiddleware,
-#    allow_origins=["https://jatinchandani.github.io"],
-#    allow_credentials=True,
-#    allow_methods=["*"],
-#    allow_headers=["*"],
-#)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace "*" with specific domains
+    allow_origins=["https://jatinchandani.github.io"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 
 # Global vector store instance (initialized at startup)
 vector_store = None
