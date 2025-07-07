@@ -136,7 +136,10 @@ class PropertyFilter:
             if amenity in ['pet_friendly', 'parking_available', 'furnished', 'utilities_included']:
                 filtered = [p for p in filtered if p.get(amenity, False)]
             else:
-                filtered = [p for p in filtered if amenity.lower() in [a.lower() for a in p.get('amenities', [])]]
+                filtered = [
+                    p for p in filtered
+                    if any(amenity.lower() in a.lower() for a in p.get('amenities', []))
+                ]
         return filtered
 
 # -----------------------------
