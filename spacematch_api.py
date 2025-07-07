@@ -228,3 +228,32 @@ async def startup_event():
     success = initialize_vector_store()
     if not success:
         logger.error("Vector store initialization failed. API may not function properly.")
+
+# -----------------------------
+# Chat Endpoint
+# -----------------------------
+
+@app.get("/chat", response_model=ChatResponse)
+async def chat(query: str, max_results: int = 10, user_id: Optional[str] = None):
+    if not vector_store:
+        raise HTTPException(status_code=500, detail="Vector store not initialized")
+
+    try:
+        qp = QueryProcessor()
+        enhanced_query = qp.enhance_query(query)
+
+        results = vector_store.search(enhanced_query, k=max_results)
+        pf = PropertyFilter(query)
+        filtered = pf.apply_filters(results)
+
+        response = {
+            "message": generate_response_message(query, filtered, len(filtered)),
+            "properties": [convert_np_types(p) for p in filtered],
+            "total_found": len(filtered),
+            "query_processed": enhanced_query,
+            "timestamp": datetime.now().isoformat()
+        }
+        return JSONResponse(content=response)
+    except Exception as e:
+        logger.exception("Chat endpoint error")
+        raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
