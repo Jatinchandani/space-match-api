@@ -27,6 +27,9 @@ class SpaceMatchVectorStore:
 
         logger.info(f"Initialized with model: {model_name}, dimension: {self.dimension}")
 
+    def __repr__(self):
+        return f"<SpaceMatchVectorStore with {len(self.property_data)} properties, index size={self.index.ntotal if self.index else 0}>"
+
     def create_property_text(self, prop: Dict[str, Any]) -> str:
         amenities = ', '.join(prop.get('amenities', [])) or 'basic amenities'
         features = []
@@ -39,29 +42,8 @@ class SpaceMatchVectorStore:
                f"{prop.get('state')} {prop.get('zip_code')} with {prop.get('sqft')} sqft, " \
                f"₹{prop.get('monthly_rent')} monthly, {prop.get('bathrooms')} bathrooms, " \
                f"amenities: {amenities}, features: {', '.join(features) or 'standard features'}. " \
-               f"{prop.get('description', '')} {prop.get('title', '')}"
+               f"{prop.get('description') or ''} {prop.get('title') or ''}"
         return text
-
-    def load_data(self, filepath: str):
-        logger.info(f"Loading data from {filepath}")
-        if filepath.endswith('.csv'):
-            df = pd.read_csv(filepath)
-        elif filepath.endswith('.json'):
-            df = pd.read_json(filepath)
-        else:
-            raise ValueError("Unsupported file format. Use CSV or JSON.")
-
-        self.property_data = df.to_dict('records')
-        for prop in self.property_data:
-            if isinstance(prop.get('amenities'), str):
-                try:
-                    prop['amenities'] = json.loads(prop['amenities'])
-                except:
-                    try:
-                        prop['amenities'] = eval(prop['amenities'])
-                    except:
-                        prop['amenities'] = []
-        logger.info(f"Loaded {len(self.property_data)} records")
 
     def load_data(self, filepath: str):
         logger.info(f"Loading data from {filepath}")
@@ -81,10 +63,7 @@ class SpaceMatchVectorStore:
                 try:
                     prop['amenities'] = json.loads(prop['amenities'])
                 except Exception:
-                    try:
-                        prop['amenities'] = eval(prop['amenities'])
-                    except Exception:
-                        prop['amenities'] = []
+                    prop['amenities'] = []
 
         logger.info(f"Loaded {len(self.property_data)} records")
 
@@ -116,6 +95,9 @@ class SpaceMatchVectorStore:
         logger.info("Index saved successfully")
 
     def load_index(self, path='spacematch_index'):
+        if not os.path.exists(f"{path}.faiss") or not os.path.exists(f"{path}_data.pkl"):
+            raise FileNotFoundError("Index files not found.")
+        
         self.index = faiss.read_index(f"{path}.faiss")
         with open(f"{path}_data.pkl", 'rb') as f:
             data = pickle.load(f)
@@ -144,6 +126,10 @@ class SpaceMatchVectorStore:
                 result['similarity_score'] = float(score)
                 result['search_rank'] = rank + 1
                 results.append(result)
+
+        if not results:
+            logger.warning(f"No results found for query: '{query}'")
+
         return results
 
     def get_stats(self) -> Dict[str, Any]:
@@ -151,6 +137,10 @@ class SpaceMatchVectorStore:
             return {"error": "No data loaded"}
 
         df = pd.DataFrame(self.property_data)
+
+        # Convert rent and sqft to numeric
+        df['monthly_rent'] = pd.to_numeric(df['monthly_rent'], errors='coerce')
+        df['sqft'] = pd.to_numeric(df['sqft'], errors='coerce')
 
         #  👇 Add these debug lines
         print("Available columns:", df.columns.tolist())
