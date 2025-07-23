@@ -108,7 +108,12 @@ def generate_property_listing():
         'zip_code': zip_code,
         'available_date': available_date.strftime('%Y-%m-%d'),
         'lease_term_months': lease_term,
-        'amenities': selected_amenities,
+        'amenities': selected_amenities + [
+            'pet_friendly' if 'Pet Friendly' in selected_amenities else None,
+            'parking_available' if 'Parking' in selected_amenities else None,
+            'furnished' if 'Furnished' in selected_amenities else None,
+            'utilities_included' if 'Utilities Included' in selected_amenities else None
+        ],
         'pet_friendly': 'Pet Friendly' in selected_amenities,
         'parking_available': 'Parking' in selected_amenities,
         'furnished': 'Furnished' in selected_amenities,

@@ -50,6 +50,7 @@ class SpaceMatchVectorStore:
     
         if filepath.endswith('.csv'):
             df = pd.read_csv(filepath)
+            self.property_data = df.to_dict(orient='records')
         elif filepath.endswith('.json'):
             with open(filepath, 'r') as f:
                 self.property_data = json.load(f)

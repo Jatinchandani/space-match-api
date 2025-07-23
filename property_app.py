@@ -111,10 +111,11 @@ class PropertyFilter:
         if 'property_type' in self.filters:
             filtered = [p for p in filtered if p.get('property_type', '').lower() == self.filters['property_type']]
         for amenity in self.filters.get('amenities', []):
+            # Check both boolean field and amenity string in list
             if amenity in ['pet_friendly', 'parking_available', 'furnished', 'utilities_included']:
-                filtered = [p for p in filtered if p.get(amenity, False)]
+                filtered = [p for p in filtered if p.get(amenity, False) or amenity in [a.lower().replace(' ', '_') for a in p.get('amenities', [])]]
             else:
-                filtered = [p for p in filtered if amenity.lower() in [a.lower() for a in p.get('amenities', [])]]
+                filtered = [p for p in filtered if amenity.lower() in [a.lower().replace(' ', '_') for a in p.get('amenities', [])]]
         return filtered
 
 class QueryProcessor:
